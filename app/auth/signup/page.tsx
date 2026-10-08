@@ -10,6 +10,7 @@ export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,25 +33,36 @@ export default function SignupPage() {
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+
+      let data: any = {};
+
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = {};
+      }
 
       if (!response.ok) {
         setError(
-          data.message || "Could not create your account."
+          data.message ||
+            data.error ||
+            `Signup failed (${response.status})`
         );
         return;
       }
 
       router.push("/login");
-    } catch {
-      setError("Something went wrong. Please try again.");
+    } catch (error) {
+      console.error("SIGNUP ERROR:", error);
+      setError("Could not connect to the signup server.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen bg-[#080808] text-white flex items-center justify-center px-6">
+    <main className="flex min-h-screen items-center justify-center bg-[#080808] px-6 text-white">
       <div className="w-full max-w-md">
         <Link
           href="/"
@@ -82,9 +94,7 @@ export default function SignupPage() {
               type="text"
               placeholder="Username"
               value={username}
-              onChange={(e) =>
-                setUsername(e.target.value)
-              }
+              onChange={(e) => setUsername(e.target.value)}
               required
               className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none focus:border-purple-500"
             />
@@ -93,9 +103,7 @@ export default function SignupPage() {
               type="email"
               placeholder="Email"
               value={email}
-              onChange={(e) =>
-                setEmail(e.target.value)
-              }
+              onChange={(e) => setEmail(e.target.value)}
               required
               className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none focus:border-purple-500"
             />
@@ -104,9 +112,7 @@ export default function SignupPage() {
               type="password"
               placeholder="Password"
               value={password}
-              onChange={(e) =>
-                setPassword(e.target.value)
-              }
+              onChange={(e) => setPassword(e.target.value)}
               required
               minLength={6}
               className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none focus:border-purple-500"
