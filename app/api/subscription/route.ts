@@ -1,12 +1,13 @@
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    // Get cookies from the request
-    const cookieHeader = request.headers.get("cookie");
+    const user = await getCurrentUser();
 
-    if (!cookieHeader) {
-      return Response.json(
+    if (!user) {
+      return NextResponse.json(
         {
           success: false,
           message: "Not authenticated",
@@ -15,102 +16,81 @@ export async function GET(request: Request) {
       );
     }
 
-    // Find the session cookie
-    const sessionCookie = cookieHeader
-      .split(";")
-      .map((cookie) => cookie.trim())
-      .find((cookie) => cookie.startsWith("session="));
-
-    if (!sessionCookie) {
-      return Response.json(
-        {
-          success: false,
-          message: "Not authenticated",
+    // Get the user's latest subscription
+    const subscription =
+      await prisma.subscription.findFirst({
+        where: {
+          userId: user.id,
         },
-        { status: 401 }
-      );
-    }
-
-    // Extract the token
-    const sessionToken = sessionCookie
-      .substring("session=".length)
-      .trim();
-
-    if (!sessionToken) {
-      return Response.json(
-        {
-          success: false,
-          message: "Not authenticated",
+        orderBy: {
+          createdAt: "desc",
         },
-        { status: 401 }
-      );
-    }
+      });
 
-    // Find the logged-in session
-    const session = await prisma.session.findUnique({
-      where: {
-        token: sessionToken,
-      },
-      include: {
-        user: true,
-      },
-    });
-
-    // Session doesn't exist
-    if (!session) {
-      return Response.json(
-        {
-          success: false,
-          message: "Invalid session",
-        },
-        { status: 401 }
-      );
-    }
-
-    // Session has expired
-    if (session.expiresAt < new Date()) {
-      return Response.json(
-        {
-          success: false,
-          message: "Session expired",
-        },
-        { status: 401 }
-      );
-    }
-
-    // Find the user's subscription separately
-    let subscription = await prisma.subscription.findUnique({
-      where: {
-        userId: session.user.id,
-      },
-    });
-
-    // Give every user a FREE subscription by default
+    // If user has no paid subscription,
+    // return their default Free plan.
     if (!subscription) {
-      subscription = await prisma.subscription.create({
-        data: {
-          userId: session.user.id,
-          plan: "FREE",
-          status: "ACTIVE",
+      return NextResponse.json({
+        success: true,
+        subscription: {
+          id: null,
+          plan: "free",
+          billingCycle: null,
+          amount: 0,
+          currency: "INR",
+          paymentId: null,
+          orderId: null,
+          invoiceNumber: null,
+          paymentStatus: "active",
+          startDate: null,
+          expiryDate: null,
+          renewalDate: null,
         },
       });
     }
 
-    // Return subscription information
-    return Response.json({
+    // Automatically treat expired subscriptions as expired
+    // and downgrade the user's active plan to Free.
+    if (
+      subscription.expiryDate &&
+      subscription.expiryDate < new Date() &&
+      user.plan !== "free"
+    ) {
+      await prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          plan: "free",
+          planExpiresAt: null,
+        },
+      });
+    }
+
+    return NextResponse.json({
       success: true,
       subscription: {
         id: subscription.id,
         plan: subscription.plan,
-        status: subscription.status,
-        startedAt: subscription.startedAt,
-        expiresAt: subscription.expiresAt,
+        billingCycle: subscription.billingCycle,
+        amount: subscription.amount,
+        currency: subscription.currency,
+        paymentId: subscription.paymentId,
+        orderId: subscription.orderId,
+        invoiceNumber: subscription.invoiceNumber,
+        paymentStatus: subscription.paymentStatus,
+        startDate: subscription.startDate,
+        expiryDate: subscription.expiryDate,
+        renewalDate: subscription.renewalDate,
       },
     });
   } catch (error) {
-    console.error("Failed to fetch subscription:", error);
+    console.error(
+      "Failed to fetch subscription:",
+      error
+    );
 
-    return Response.json(
+    return NextResponse.json(
       {
         success: false,
         message: "Failed to fetch subscription",
