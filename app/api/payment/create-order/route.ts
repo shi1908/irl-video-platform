@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { razorpay } from "@/lib/razorpay";
+import { getRazorpay } from "@/lib/razorpay";
 import { getCurrentUser } from "@/lib/auth";
 
 const PLANS = {
@@ -22,7 +22,6 @@ const PLANS = {
 
 export async function POST(request: Request) {
   try {
-    // Check login
     const user = await getCurrentUser();
 
     if (!user) {
@@ -35,7 +34,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Read request
     const body = await request.json();
 
     const plan = body.plan?.toLowerCase();
@@ -45,7 +43,6 @@ export async function POST(request: Request) {
         ? "yearly"
         : "monthly";
 
-    // Validate plan
     if (
       !plan ||
       !Object.prototype.hasOwnProperty.call(PLANS, plan)
@@ -67,9 +64,11 @@ export async function POST(request: Request) {
         ? selectedPlan.yearly
         : selectedPlan.monthly;
 
-    // Debug credentials
     console.log("========== RAZORPAY DEBUG ==========");
-    console.log("Key exists:", !!process.env.RAZORPAY_KEY_ID);
+    console.log(
+      "Key exists:",
+      !!process.env.RAZORPAY_KEY_ID
+    );
     console.log(
       "Key prefix:",
       process.env.RAZORPAY_KEY_ID?.slice(0, 10)
@@ -84,7 +83,9 @@ export async function POST(request: Request) {
     console.log("User:", user.email);
     console.log("====================================");
 
-    // Make Razorpay order
+    // Create Razorpay instance only when the API is called.
+    const razorpay = getRazorpay();
+
     const order = await razorpay.orders.create({
       amount,
       currency: "INR",
@@ -96,7 +97,10 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log("RAZORPAY ORDER CREATED:", order.id);
+    console.log(
+      "RAZORPAY ORDER CREATED:",
+      order.id
+    );
 
     return NextResponse.json({
       success: true,
@@ -112,16 +116,32 @@ export async function POST(request: Request) {
       },
     });
   } catch (error: any) {
-    console.error("========== RAZORPAY ERROR ==========");
-    console.error("STATUS:", error?.statusCode);
-    console.error("ERROR:", error?.error);
-    console.error("MESSAGE:", error?.message);
+    console.error(
+      "========== RAZORPAY ERROR =========="
+    );
+    console.error(
+      "STATUS:",
+      error?.statusCode
+    );
+    console.error(
+      "ERROR:",
+      error?.error
+    );
+    console.error(
+      "MESSAGE:",
+      error?.message
+    );
     console.error(
       "DESCRIPTION:",
       error?.error?.description
     );
-    console.error("CODE:", error?.error?.code);
-    console.error("====================================");
+    console.error(
+      "CODE:",
+      error?.error?.code
+    );
+    console.error(
+      "===================================="
+    );
 
     return NextResponse.json(
       {
@@ -130,7 +150,8 @@ export async function POST(request: Request) {
           error?.error?.description ||
           error?.message ||
           "Could not create payment order.",
-        code: error?.error?.code || null,
+        code:
+          error?.error?.code || null,
       },
       { status: 500 }
     );
