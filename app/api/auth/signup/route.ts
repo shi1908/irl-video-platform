@@ -104,13 +104,16 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch (error) {
+   } catch (error) {
     console.error("SIGNUP ERROR:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "Something went wrong while creating the account.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unknown signup error",
       },
       { status: 500 }
     );
