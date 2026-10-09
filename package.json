@@ -10,11 +10,14 @@
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
+    "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.6",
     "next": "16.3.5",
     "pay": "^0.0.1",
+    "pg": "^8.23.1",
     "prisma": "^7.10.0",
     "razor": "^1.1.1",
     "razorpay": "^2.9.8",
@@ -26,6 +29,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
