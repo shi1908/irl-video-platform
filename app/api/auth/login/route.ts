@@ -1,7 +1,9 @@
+
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { createSession } from "@/lib/auth";
+import { createOtpChallenge } from "@/lib/otp";
+import { sendOtpEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -20,15 +22,9 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("LOGIN EMAIL:", email);
-
     const user = await prisma.user.findUnique({
-      where: {
-        email: email,
-      },
+      where: { email },
     });
-
-    console.log("USER FOUND:", !!user);
 
     if (!user) {
       return NextResponse.json(
@@ -45,8 +41,6 @@ export async function POST(request: Request) {
       user.password
     );
 
-    console.log("PASSWORD MATCH:", passwordMatches);
-
     if (!passwordMatches) {
       return NextResponse.json(
         {
@@ -57,26 +51,37 @@ export async function POST(request: Request) {
       );
     }
 
-    await createSession(user.id);
+    // Generate and store an OTP challenge. Do NOT create a session here.
+    const challenge = await createOtpChallenge(user.id);
 
-    return NextResponse.json({
+    await sendOtpEmail(user.email, challenge.code);
+
+    const response = NextResponse.json({
       success: true,
-      message: "Login successful.",
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatar: user.avatar,
-        createdAt: user.createdAt,
-      },
+      requiresOtp: true,
+      message: "Verification code sent to your email.",
     });
+
+    response.cookies.set(
+      "irl_pending_otp",
+      challenge.token,
+      {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 10 * 60,
+      }
+    );
+
+    return response;
   } catch (error) {
     console.error("Login error:", error);
 
     return NextResponse.json(
       {
         success: false,
-        message: "Something went wrong while logging in.",
+        message: "Unable to start verification. Please try again.",
       },
       { status: 500 }
     );

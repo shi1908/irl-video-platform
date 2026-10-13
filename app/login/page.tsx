@@ -64,9 +64,14 @@ export default function LoginPage() {
         return;
       }
 
-      if (data.success) {
-        window.location.href = "/dashboard";
-      }
+     if (data.success && data.requiresOtp) {
+  window.location.href = "/auth/verify-otp";
+  return;
+}
+
+if (data.success) {
+  setFormError("Unexpected login response. Please try again.");
+}
     } catch (error) {
       console.error("Login request failed:", error);
 

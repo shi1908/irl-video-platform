@@ -12,7 +12,8 @@ model User {
   password  String
   avatar    String?
   createdAt DateTime @default(now())
-
+  otpChallenges  OtpChallenge[]
+  trustedDevices TrustedDevice[]
   plan          String   @default("free")
   planExpiresAt DateTime?
 
@@ -102,4 +103,33 @@ model Download {
   @@index([userId])
   @@index([videoId])
   @@index([downloadedAt])
+}
+
+model OtpChallenge {
+  id                String   @id @default(cuid())
+  userId            String
+  challengeTokenHash String   @unique
+  codeHash          String
+  expiresAt         DateTime
+  attempts          Int      @default(0)
+  lastSentAt        DateTime @default(now())
+  consumedAt        DateTime?
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model TrustedDevice {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
